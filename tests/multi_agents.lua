@@ -164,6 +164,17 @@ local function run()
   eq('right', api.nvim_win_get_config(0).split)
   vim.cmd.CloseAgent()
 
+  vim.cmd.OpenVertical()
+  eq('right', api.nvim_win_get_config(0).split)
+  eq('cat', vim.fn.fnamemodify(api.nvim_buf_get_name(0), ':t'))
+  vim.cmd('OpenFloat --mode vertical cat -u')
+  eq('editor', api.nvim_win_get_config(0).relative)
+  vim.cmd.ListAgent()
+  eq('cat -u', api.nvim_buf_get_lines(0, 3, 4, false)[1])
+  keys('<Esc>')
+  vim.cmd.CloseAgent()
+  vim.cmd.CloseAgent()
+
   for _, name in ipairs({ 'codex', 'claude', 'pi', 'agy', 'dsh' }) do
     local command = ([[sh -c 'exec cat' "/some/path/%s"]]):format(name)
     local first = agents.open(command)

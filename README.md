@@ -12,7 +12,7 @@ With lazy.nvim, add the following spec. For manual setup, use `require("multi-ag
 {
   'suemi994/multi-agents.nvim',
   main = 'multi-agents',
-  cmd = { 'OpenAgent', 'ListAgent', 'ToggleAgent', 'CloseAgent' },
+  cmd = { 'OpenAgent', 'OpenFloat', 'OpenVertical', 'ListAgent', 'ToggleAgent', 'CloseAgent' },
   opts = {
     command = 'claude',
     env = { EXAMPLE_ENV = 'some value' },
@@ -38,6 +38,8 @@ Agent terminals are unlisted and floating agent windows use the editor's Normal 
 | Command | Behavior |
 | --- | --- |
 | `:OpenAgent [--mode float\|vertical] [command]` | Create a new terminal, defaulting to `opts.command`. The first matching Agent name (`codex`, `claude`, `pi`, `agy`, or `dsh`) names the buffer. Otherwise, use the first command word. Duplicates get suffixes such as `-2`. |
+| `:OpenFloat [command]` | Open an agent in a float. Uses `opts.command` when no command is supplied. |
+| `:OpenVertical [command]` | Open an agent in a vertical split. Uses `opts.command` when no command is supplied. |
 | `:ListAgent` | List live agents with their command, PID, and local launch time in a float (70% width, 50% height). Each command gets its own line and ends in `…` if it exceeds the window width. The current default is marked with `*`. Use ↑/↓ to move, Enter to select the default agent, or Esc to cancel. |
 | `:ToggleAgent [name or buffer number]` | Show or hide the specified or selected terminal. A name or number makes that terminal the default. With no live agents, the argument-free form creates one. |
 | `:CloseAgent [name or buffer number]` | Stop the job and remove the specified or selected buffer. Closing the selected agent selects the next live agent in creation order, wrapping to the first. |

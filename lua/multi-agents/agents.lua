@@ -150,8 +150,9 @@ local function activate(agent, win)
   end
 end
 
-function M.open(args)
+function M.open(args, forced_mode)
   local mode, command = parse_open_args(args)
+  mode = forced_mode or mode
   local name = unique_name(command)
   local cwd = config.git.use_git_root and git.get_git_root() or nil
   local buf = api.nvim_create_buf(false, true)
@@ -330,6 +331,12 @@ function M.setup(opts)
   api.nvim_create_user_command('OpenAgent', function(cmd)
     M.open(cmd.args)
   end, { nargs = '*', desc = 'Open a new terminal agent' })
+  api.nvim_create_user_command('OpenFloat', function(cmd)
+    M.open(cmd.args, 'float')
+  end, { nargs = '*', desc = 'Open a new terminal agent in a floating window' })
+  api.nvim_create_user_command('OpenVertical', function(cmd)
+    M.open(cmd.args, 'vertical')
+  end, { nargs = '*', desc = 'Open a new terminal agent in a vertical split' })
   api.nvim_create_user_command('ListAgent', M.list, { desc = 'Select the default terminal agent' })
   api.nvim_create_user_command('ToggleAgent', function(cmd)
     M.toggle(cmd.args)
