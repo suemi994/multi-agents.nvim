@@ -219,10 +219,9 @@ function M.list()
   end
 
   local entries = vim.list_extend({}, agents)
-  local lines, width, cursor = {}, 16, 1
+  local lines, cursor = {}, 1
   for index, agent in ipairs(entries) do
     lines[index] = agent.name .. '  [' .. agent.mode .. ']'
-    width = math.max(width, vim.fn.strdisplaywidth(lines[index]))
     if agent == selected then
       cursor = index
     end
@@ -233,16 +232,7 @@ function M.list()
   vim.bo[buf].modifiable = false
 
   vim.cmd.stopinsert()
-  local win = api.nvim_open_win(
-    buf,
-    true,
-    terminal.float_config({
-      width = math.min(width, math.max(1, vim.o.columns - 2)),
-      height = math.min(#lines, math.max(1, vim.o.lines - vim.o.cmdheight - 3)),
-      row = 'center',
-      col = 'center',
-    })
-  )
+  local win = api.nvim_open_win(buf, true, terminal.float_config(config.window.float))
   picker = win
   vim.wo[win].cursorline = true
   vim.wo[win].wrap = false

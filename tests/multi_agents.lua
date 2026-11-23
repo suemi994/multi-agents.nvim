@@ -54,8 +54,12 @@ local function run()
   assert(vim.wo.winhighlight:find('Normal:Normal', 1, true))
   assert(not visible(one) and live(one) and live(two) and not vim.bo[two].buflisted)
 
+  local agent_float = api.nvim_win_get_config(0)
   vim.cmd.ListAgent()
-  eq('editor', api.nvim_win_get_config(0).relative)
+  local list_float = api.nvim_win_get_config(0)
+  for _, field in ipairs({ 'relative', 'width', 'height', 'row', 'col', 'border' }) do
+    eq(agent_float[field], list_float[field])
+  end
   eq({ 'cat  [vertical]', 'cat-2  [float]' }, api.nvim_buf_get_lines(0, 0, -1, false))
   eq(2, api.nvim_win_get_cursor(0)[1])
   keys('<Up><Down><Up><CR>')
