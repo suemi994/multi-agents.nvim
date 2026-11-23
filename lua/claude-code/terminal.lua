@@ -65,36 +65,32 @@ local function calculate_float_position(value, window_size, max_value)
   return math.max(0, math.min(pos, max_value - window_size))
 end
 
+--- Build an nvim_open_win configuration shared by both terminal managers.
+--- @param float_config table Floating window settings
+function M.float_config(float_config)
+  local editor_width = vim.o.columns
+  local editor_height = math.max(1, vim.o.lines - vim.o.cmdheight - 1)
+  local width = math.max(1, math.floor(calculate_float_dimension(float_config.width, editor_width)))
+  local height = math.max(1, math.floor(calculate_float_dimension(float_config.height, editor_height)))
+
+  return {
+    relative = float_config.relative or 'editor',
+    width = width,
+    height = height,
+    row = calculate_float_position(float_config.row, height, editor_height),
+    col = calculate_float_position(float_config.col, width, editor_width),
+    border = float_config.border or 'rounded',
+    style = 'minimal',
+  }
+end
+
 --- Create a floating window for Claude Code
 --- @param config table Plugin configuration containing window settings
 --- @param existing_bufnr number|nil Buffer number of existing buffer to show in the float (optional)
 --- @return number Window ID of the created floating window
 --- @private
 local function create_float(config, existing_bufnr)
-  local float_config = config.window.float or {}
-
-  -- Get editor dimensions (accounting for command line, status line, etc.)
-  local editor_width = vim.o.columns
-  local editor_height = vim.o.lines - vim.o.cmdheight - 1 -- Subtract command line and status line
-
-  -- Calculate dimensions
-  local width = calculate_float_dimension(float_config.width, editor_width)
-  local height = calculate_float_dimension(float_config.height, editor_height)
-
-  -- Calculate position
-  local row = calculate_float_position(float_config.row, height, editor_height)
-  local col = calculate_float_position(float_config.col, width, editor_width)
-
-  -- Create floating window configuration
-  local win_config = {
-    relative = float_config.relative or 'editor',
-    width = width,
-    height = height,
-    row = row,
-    col = col,
-    border = float_config.border or 'rounded',
-    style = 'minimal',
-  }
+  local win_config = M.float_config(config.window.float or {})
 
   -- Create buffer if we don't have an existing one
   local bufnr = existing_bufnr
@@ -113,8 +109,9 @@ local function create_float(config, existing_bufnr)
     end
   end
 
-  -- Create and return the floating window
-  return vim.api.nvim_open_win(bufnr, true, win_config)
+  local win = vim.api.nvim_open_win(bufnr, true, win_config)
+  vim.api.nvim_set_option_value('winhighlight', 'Normal:Normal', { win = win })
+  return win
 end
 
 --- Build command with git root directory if configured
@@ -360,7 +357,7 @@ local function create_new_instance(claude_code, config, git, instance_id)
     local cmd = 'terminal ' .. base_cmd
 
     vim.cmd(cmd)
-    vim.cmd 'setlocal bufhidden=hide'
+    vim.cmd 'setlocal bufhidden=hide nobuflisted'
 
     -- Create a unique buffer name
     local buffer_name = generate_buffer_name(instance_id, config)

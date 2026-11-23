@@ -1,4 +1,52 @@
-# Claude Code Neovim Plugin
+# multi-agents.nvim
+
+Run multiple terminal agents in Neovim and switch between them without stopping their jobs.
+This repository is a fork of [claude-code.nvim](https://github.com/greggh/claude-code.nvim).
+
+## Multi-agent setup
+
+The multi-agent interface requires Neovim 0.11 or later and the agent CLI or shell command you want to run.
+With lazy.nvim, add the following spec. For manual setup, use `require("multi-agents").setup(opts)`.
+
+```lua
+{
+  'suemi994/multi-agents.nvim',
+  main = 'multi-agents',
+  cmd = { 'OpenAgent', 'ListAgent', 'ToggleAgent', 'CloseAgent' },
+  opts = {
+    command = 'claude',
+    env = { EXAMPLE_ENV = 'some value' },
+    window = {
+      mode = 'vertical',
+      vertical = { side = 'right', split_ratio = 0.3 },
+      float = {
+        width = '80%', height = '80%',
+        row = 'center', col = 'center',
+        relative = 'editor', border = 'rounded',
+      },
+    },
+    git = { use_git_root = true },
+  },
+}
+```
+
+Agent processes inherit the terminal environment with `opts.env` applied on top. Set
+`git.use_git_root = false` to start from Neovim's current working directory. Float dimensions
+and positions accept absolute values or percentages. Each agent keeps its launch layout when reopened.
+Agent terminals are unlisted and floating agent windows use the editor's Normal background.
+
+| Command | Behavior |
+| --- | --- |
+| `:OpenAgent [--mode float\|vertical] [command]` | Create a new terminal, defaulting to `opts.command`. The first word names the buffer, with suffixes such as `-2` for duplicates. |
+| `:ListAgent` | List live agents in a float. Use ↑/↓ to move, Enter to select the default agent, or Esc to cancel. |
+| `:ToggleAgent [name or buffer number]` | Show or hide the specified or selected terminal. A name or number makes that terminal the default. With no live agents, the argument-free form creates one. |
+| `:CloseAgent [name or buffer number]` | Stop the job and remove the specified or selected buffer. Closing the selected agent selects the next live agent in creation order, wrapping to the first. |
+
+For example, `:OpenAgent --mode float claude --continue` starts Claude in a float, forwarding
+`--continue` to Claude. Only the leading `--mode` pair configures the plugin. Use a leading `--`
+to end option parsing explicitly. When an agent exits, its buffer is removed automatically.
+
+## Legacy Claude Code interface
 
 [![GitHub License](https://img.shields.io/github/license/greggh/claude-code.nvim?style=flat-square)](https://github.com/greggh/claude-code.nvim/blob/main/LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/greggh/claude-code.nvim?style=flat-square)](https://github.com/greggh/claude-code.nvim/stargazers)

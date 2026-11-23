@@ -8,7 +8,9 @@ local M = {}
 
 --- ClaudeCodeWindow class for window configuration
 -- @table ClaudeCodeWindow
--- @field split_ratio number Percentage of screen for the terminal window (height for horizontal, width for vertical)
+-- @field mode 'vertical'|'float' Default layout for OpenAgent
+-- @field vertical table Vertical layout with split_ratio and side ('left' or 'right')
+-- @field split_ratio number Percentage of screen for the legacy terminal window (height for horizontal, width for vertical)
 -- @field position string Position of the window: "botright", "topleft", "vertical", "float" etc.
 -- @field enter_insert boolean Whether to enter insert mode when opening Claude Code
 -- @field start_in_normal_mode boolean Whether to start in normal mode instead of insert mode when opening Claude Code
@@ -66,7 +68,8 @@ local M = {}
 -- @field refresh ClaudeCodeRefresh File refresh settings
 -- @field git ClaudeCodeGit Git integration settings
 -- @field shell ClaudeCodeShell Shell-specific configuration
--- @field command string Command used to launch Claude Code
+-- @field command string Default command used to launch a terminal agent
+-- @field env table<string, string> Environment variables passed to agent processes
 -- @field command_variants ClaudeCodeCommandVariants Command variants configuration
 -- @field keymaps ClaudeCodeKeymaps Keymaps configuration
 
@@ -75,6 +78,8 @@ local M = {}
 M.default_config = {
   -- Terminal window settings
   window = {
+    mode = 'vertical',
+    vertical = { split_ratio = 0.3, side = 'right' },
     split_ratio = 0.3, -- Percentage of screen for the terminal window (height or width)
     height_ratio = 0.3, -- DEPRECATED: Use split_ratio instead
     position = 'botright', -- Position of the window: "botright", "topleft", "vertical", "float", etc.
@@ -111,7 +116,8 @@ M.default_config = {
     popd_cmd = 'popd', -- Command to pop directory from stack
   },
   -- Command settings
-  command = 'claude', -- Command used to launch Claude Code
+  command = 'claude', -- Default command used to launch an agent
+  env = {},
   -- Command variants
   command_variants = {
     -- Conversation management
@@ -144,6 +150,21 @@ M.default_config = {
 local function validate_window_config(window)
   if type(window) ~= 'table' then
     return false, 'window config must be a table'
+  end
+
+  if window.mode ~= 'float' and window.mode ~= 'vertical' then
+    return false, 'window.mode must be "float" or "vertical"'
+  end
+
+  local vertical = window.vertical
+  if type(vertical) ~= 'table' then
+    return false, 'window.vertical must be a table'
+  end
+  if type(vertical.split_ratio) ~= 'number' or not (vertical.split_ratio > 0 and vertical.split_ratio <= 1) then
+    return false, 'window.vertical.split_ratio must be a number between 0 and 1'
+  end
+  if vertical.side ~= 'left' and vertical.side ~= 'right' then
+    return false, 'window.vertical.side must be "left" or "right"'
   end
 
   if type(window.split_ratio) ~= 'number' or window.split_ratio <= 0 or window.split_ratio > 1 then
@@ -392,12 +413,10 @@ local function validate_config(config)
     return false, err
   end
 
-  -- Validate float configuration if position is "float"
-  if config.window.position == 'float' then
-    valid, err = validate_float_config(config.window.float)
-    if not valid then
-      return false, err
-    end
+  -- OpenAgent can override its layout, so validate the float in either mode.
+  valid, err = validate_float_config(config.window.float)
+  if not valid then
+    return false, err
   end
 
   -- Validate refresh settings
@@ -419,8 +438,20 @@ local function validate_config(config)
   end
 
   -- Validate command settings
-  if type(config.command) ~= 'string' then
-    return false, 'command must be a string'
+  if type(config.command) ~= 'string' or not config.command:match('%S') then
+    return false, 'command must be a nonempty string'
+  end
+
+  if type(config.env) ~= 'table' then
+    return false, 'env must be a map of strings'
+  end
+  for name, value in pairs(config.env) do
+    if type(name) ~= 'string' or name == '' or name:find('[=%z]') then
+      return false, 'env keys must be nonempty strings without "=" or NUL'
+    end
+    if type(value) ~= 'string' or value:find('%z') then
+      return false, 'env values must be strings without NUL'
+    end
   end
 
   -- Validate command variants settings
