@@ -160,7 +160,10 @@ local function validate_window_config(window)
   if type(vertical) ~= 'table' then
     return false, 'window.vertical must be a table'
   end
-  if type(vertical.split_ratio) ~= 'number' or not (vertical.split_ratio > 0 and vertical.split_ratio <= 1) then
+  if
+    type(vertical.split_ratio) ~= 'number'
+    or not (vertical.split_ratio > 0 and vertical.split_ratio <= 1)
+  then
     return false, 'window.vertical.split_ratio must be a number between 0 and 1'
   end
   if vertical.side ~= 'left' and vertical.side ~= 'right' then
