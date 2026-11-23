@@ -38,8 +38,17 @@ local function parse_open_args(args)
   return mode, command ~= '' and command or vim.trim(config.command)
 end
 
+local agent_names = { codex = true, claude = true, pi = true, agy = true, dsh = true }
+
 local function unique_name(command)
   local base = command:match('^%S+')
+  for word in command:gmatch([[[^%s'";|&()<>]+]]) do
+    local executable = word:match('[^/]+$')
+    if executable and agent_names[executable] then
+      base = executable
+      break
+    end
+  end
   local used_names = {}
   for _, agent in ipairs(agents) do
     used_names[agent.name] = true
@@ -215,6 +224,27 @@ function M.close(name)
   end
 end
 
+local function abbreviate(command, width)
+  if vim.fn.strdisplaywidth(command) <= width then
+    return command
+  end
+  local ellipsis = '…'
+  local limit = width - vim.fn.strdisplaywidth(ellipsis)
+  if limit < 0 then
+    return '.'
+  end
+  local first, last = 0, math.min(limit, vim.fn.strchars(command, true))
+  while first < last do
+    local mid = math.ceil((first + last) / 2)
+    if vim.fn.strdisplaywidth(vim.fn.strcharpart(command, 0, mid, true)) <= limit then
+      first = mid
+    else
+      last = mid - 1
+    end
+  end
+  return vim.fn.strcharpart(command, 0, first, true) .. ellipsis
+end
+
 function M.list()
   if picker and api.nvim_win_is_valid(picker) then
     api.nvim_win_close(picker, true)
@@ -225,20 +255,23 @@ function M.list()
     return
   end
 
+  local layout = vim.tbl_extend('force', config.window.float, { width = '70%', height = '50%' })
+  local win_config = terminal.float_config(layout)
   local entries = vim.list_extend({}, agents)
   local lines, cursor = {}, 1
   for index, agent in ipairs(entries) do
     local is_selected = agent == selected
-    lines[index] = ('%s %s [%s]  PID %s  %s  %s'):format(
+    local row = 2 * index - 1
+    lines[row] = ('%s %s [%s]  PID %s  %s'):format(
       is_selected and '*' or ' ',
       agent.name,
       agent.mode,
       agent.pid or '-',
-      os.date('%Y-%m-%d %H:%M:%S', agent.started_at),
-      vim.fn.strtrans(agent.command)
+      os.date('%Y-%m-%d %H:%M:%S', agent.started_at)
     )
+    lines[row + 1] = abbreviate(vim.fn.strtrans(agent.command), win_config.width)
     if is_selected then
-      cursor = index
+      cursor = row
     end
   end
   local buf = api.nvim_create_buf(false, true)
@@ -247,27 +280,34 @@ function M.list()
   vim.bo[buf].modifiable = false
 
   vim.cmd.stopinsert()
-  local layout = vim.tbl_extend('force', config.window.float, { width = '70%', height = '50%' })
-  local win = api.nvim_open_win(buf, true, terminal.float_config(layout))
+  local win = api.nvim_open_win(buf, true, win_config)
   picker = win
   vim.wo[win].winhighlight = 'Normal:Normal,NormalFloat:Normal'
   vim.wo[win].winblend = 0
   vim.wo[win].cursorline = true
   vim.wo[win].cursorlineopt = 'line'
-  vim.wo[win].wrap = true
-  vim.wo[win].linebreak = true
+  vim.wo[win].wrap = false
   api.nvim_win_set_cursor(win, { cursor, 0 })
 
   local function dismiss()
     api.nvim_win_close(win, true)
   end
+  local function current_index()
+    return math.ceil(api.nvim_win_get_cursor(win)[1] / 2)
+  end
+  local function move(delta)
+    return function()
+      local index = math.max(1, math.min(#entries, current_index() + delta))
+      api.nvim_win_set_cursor(win, { 2 * index - 1, 0 })
+    end
+  end
   local opts = { buffer = buf, nowait = true, silent = true }
-  vim.keymap.set('n', '<Up>', 'k', opts)
-  vim.keymap.set('n', '<Down>', 'j', opts)
+  vim.keymap.set('n', '<Up>', move(-1), opts)
+  vim.keymap.set('n', '<Down>', move(1), opts)
   vim.keymap.set('n', '<Esc>', dismiss, opts)
   vim.keymap.set('n', 'q', dismiss, opts)
   vim.keymap.set('n', '<CR>', function()
-    local agent = entries[api.nvim_win_get_cursor(win)[1]]
+    local agent = entries[current_index()]
     if vim.tbl_contains(agents, agent) then
       selected = agent
     end
