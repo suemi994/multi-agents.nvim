@@ -5,12 +5,13 @@ This repository is a fork of [claude-code.nvim](https://github.com/greggh/claude
 
 ## Multi-agent setup
 
-The multi-agent interface requires Neovim 0.11 or later and the agent CLI or shell command you want to run.
+This branch supports the multi-agent interface on Neovim 0.9.5 and newer. It also requires the agent CLI or shell command you want to run.
 With lazy.nvim, add the following spec. For manual setup, use `require("multi-agents").setup(opts)`.
 
 ```lua
 {
   'suemi994/multi-agents.nvim',
+  branch = 'nvim-0.9.5',
   main = 'multi-agents',
   cmd = { 'OpenAgent', 'OpenFloat', 'OpenVertical', 'ListAgent', 'ToggleAgent', 'CloseAgent' },
   opts = {

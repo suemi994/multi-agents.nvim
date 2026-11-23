@@ -118,7 +118,7 @@ function M.setup(user_config)
 
   -- Register commands
   commands.register_commands(M)
-  if vim.fn.has('nvim-0.11') == 1 then
+  if vim.fn.has('nvim-0.9') == 1 then
     require('multi-agents.agents').setup(M.config)
   end
 

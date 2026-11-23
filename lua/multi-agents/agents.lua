@@ -16,6 +16,8 @@ local agents = {} ---@type MultiAgent[]
 local selected ---@type MultiAgent?
 local shown ---@type MultiAgent?
 local picker ---@type integer?
+local has_split_api = vim.fn.has('nvim-0.10') == 1
+local has_terminal_jobstart = vim.fn.has('nvim-0.11') == 1
 
 local function parse_open_args(args)
   local mode = config.window.mode
@@ -123,8 +125,15 @@ local function open_window(agent)
     vim.wo[win].winhighlight = 'Normal:Normal'
   else
     local layout = window.vertical
-    win =
-      api.nvim_open_win(agent.buf, true, { split = layout.side, win = -1, width = split_width() })
+    if has_split_api then
+      win =
+        api.nvim_open_win(agent.buf, true, { split = layout.side, win = -1, width = split_width() })
+    else
+      local side = layout.side == 'left' and 'topleft' or 'botright'
+      vim.cmd(('%s vertical sbuffer %d'):format(side, agent.buf))
+      win = api.nvim_get_current_win()
+      api.nvim_win_set_width(win, split_width())
+    end
   end
   if window.hide_numbers then
     vim.wo[win].number = false
@@ -163,14 +172,18 @@ function M.open(args, forced_mode)
     local win = open_window(agent)
     local job = api.nvim_buf_call(buf, function()
       -- Extend the child process environment without changing shell quoting or Neovim's environment.
-      return vim.fn.jobstart(command, {
-        term = true,
+      local opts = {
         cwd = cwd,
         env = next(config.env) and config.env or nil,
         on_exit = vim.schedule_wrap(function()
           close(agent)
         end),
-      })
+      }
+      if has_terminal_jobstart then
+        opts.term = true
+        return vim.fn.jobstart(command, opts)
+      end
+      return vim.fn.termopen(command, opts)
     end)
     if job <= 0 then
       error('Unable to start terminal job', 0)
@@ -234,16 +247,19 @@ local function abbreviate(command, width)
   if limit < 0 then
     return '.'
   end
+  local function prefix(length)
+    return command:sub(1, vim.fn.byteidx(command, length))
+  end
   local first, last = 0, math.min(limit, vim.fn.strchars(command, true))
   while first < last do
     local mid = math.ceil((first + last) / 2)
-    if vim.fn.strdisplaywidth(vim.fn.strcharpart(command, 0, mid, true)) <= limit then
+    if vim.fn.strdisplaywidth(prefix(mid)) <= limit then
       first = mid
     else
       last = mid - 1
     end
   end
-  return vim.fn.strcharpart(command, 0, first, true) .. ellipsis
+  return prefix(first) .. ellipsis
 end
 
 function M.list()

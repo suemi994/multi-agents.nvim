@@ -21,6 +21,13 @@ local function live(buf)
   return vim.fn.jobwait({ vim.b[buf].terminal_job_id }, 0)[1] == -1
 end
 
+local function split_side()
+  eq('', api.nvim_win_get_config(0).relative)
+  local windows = vim.fn.winlayout()
+  eq('row', windows[1])
+  return windows[2][1][2] == api.nvim_get_current_win() and 'left' or 'right'
+end
+
 local function run()
   local editor = api.nvim_get_current_buf()
   vim.env.MULTI_AGENTS_INHERITED = 'inherited'
@@ -43,7 +50,7 @@ local function run()
   eq('cat', vim.fn.fnamemodify(api.nvim_buf_get_name(one), ':t'))
   eq('terminal', vim.bo[one].buftype)
   eq(false, vim.bo[one].buflisted)
-  eq('left', api.nvim_win_get_config(0).split)
+  eq('left', split_side())
   eq(math.floor(vim.o.columns * 0.4), api.nvim_win_get_width(0))
 
   vim.cmd('OpenAgent --mode float cat -u')
@@ -161,11 +168,11 @@ local function run()
   eq('editor', api.nvim_win_get_config(0).relative)
   vim.cmd.CloseAgent()
   vim.cmd('OpenAgent --mode vertical')
-  eq('right', api.nvim_win_get_config(0).split)
+  eq('right', split_side())
   vim.cmd.CloseAgent()
 
   vim.cmd.OpenVertical()
-  eq('right', api.nvim_win_get_config(0).split)
+  eq('right', split_side())
   eq('cat', vim.fn.fnamemodify(api.nvim_buf_get_name(0), ':t'))
   vim.cmd('OpenFloat --mode vertical cat -u')
   eq('editor', api.nvim_win_get_config(0).relative)
