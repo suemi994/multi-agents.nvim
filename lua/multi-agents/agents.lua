@@ -6,6 +6,9 @@ local git = require('claude-code.git')
 ---@field name string
 ---@field buf integer
 ---@field mode 'float'|'vertical'
+---@field command string
+---@field started_at integer
+---@field pid? integer
 
 local M = {}
 local config ---@type ClaudeCodeConfig
@@ -143,7 +146,7 @@ function M.open(args)
   local name = unique_name(command)
   local cwd = config.git.use_git_root and git.get_git_root() or nil
   local buf = api.nvim_create_buf(false, true)
-  local agent = { name = name, buf = buf, mode = mode }
+  local agent = { name = name, buf = buf, mode = mode, command = command, started_at = os.time() }
   vim.bo[buf].bufhidden = 'hide'
 
   local ok, win_or_err = pcall(function()
@@ -161,6 +164,10 @@ function M.open(args)
     end)
     if job <= 0 then
       error('Unable to start terminal job', 0)
+    end
+    local has_pid, pid = pcall(vim.fn.jobpid, job)
+    if has_pid and pid > 0 then
+      agent.pid = pid
     end
     api.nvim_buf_set_name(buf, name)
     vim.bo[buf].buflisted = false
@@ -221,8 +228,16 @@ function M.list()
   local entries = vim.list_extend({}, agents)
   local lines, cursor = {}, 1
   for index, agent in ipairs(entries) do
-    lines[index] = agent.name .. '  [' .. agent.mode .. ']'
-    if agent == selected then
+    local is_selected = agent == selected
+    lines[index] = ('%s %s [%s]  PID %s  %s  %s'):format(
+      is_selected and '*' or ' ',
+      agent.name,
+      agent.mode,
+      agent.pid or '-',
+      os.date('%Y-%m-%d %H:%M:%S', agent.started_at),
+      vim.fn.strtrans(agent.command)
+    )
+    if is_selected then
       cursor = index
     end
   end
@@ -232,10 +247,15 @@ function M.list()
   vim.bo[buf].modifiable = false
 
   vim.cmd.stopinsert()
-  local win = api.nvim_open_win(buf, true, terminal.float_config(config.window.float))
+  local layout = vim.tbl_extend('force', config.window.float, { width = '70%', height = '50%' })
+  local win = api.nvim_open_win(buf, true, terminal.float_config(layout))
   picker = win
+  vim.wo[win].winhighlight = 'Normal:Normal,NormalFloat:Normal'
+  vim.wo[win].winblend = 0
   vim.wo[win].cursorline = true
-  vim.wo[win].wrap = false
+  vim.wo[win].cursorlineopt = 'line'
+  vim.wo[win].wrap = true
+  vim.wo[win].linebreak = true
   api.nvim_win_set_cursor(win, { cursor, 0 })
 
   local function dismiss()
