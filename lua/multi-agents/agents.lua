@@ -239,30 +239,6 @@ function M.close(name)
   end
 end
 
-local function abbreviate(command, width)
-  if vim.fn.strdisplaywidth(command) <= width then
-    return command
-  end
-  local ellipsis = '…'
-  local limit = width - vim.fn.strdisplaywidth(ellipsis)
-  if limit < 0 then
-    return '.'
-  end
-  local function prefix(length)
-    return command:sub(1, vim.fn.byteidx(command, length))
-  end
-  local first, last = 0, math.min(limit, vim.fn.strchars(command, true))
-  while first < last do
-    local mid = math.ceil((first + last) / 2)
-    if vim.fn.strdisplaywidth(prefix(mid)) <= limit then
-      first = mid
-    else
-      last = mid - 1
-    end
-  end
-  return prefix(first) .. ellipsis
-end
-
 function M.list()
   if picker and api.nvim_win_is_valid(picker) then
     api.nvim_win_close(picker, true)
@@ -279,17 +255,16 @@ function M.list()
   local lines, cursor = {}, 1
   for index, agent in ipairs(entries) do
     local is_selected = agent == selected
-    local row = 2 * index - 1
-    lines[row] = ('%s %s [%s]  PID %s  %s'):format(
+    lines[index] = ('%s [%s] %s  [%s]  PID %s  %s'):format(
       is_selected and '*' or ' ',
-      agent.name,
+      vim.fn.strtrans(agent.name),
+      vim.fn.strtrans(agent.command),
       agent.mode,
       agent.pid or '-',
       os.date('%Y-%m-%d %H:%M:%S', agent.started_at)
     )
-    lines[row + 1] = abbreviate(vim.fn.strtrans(agent.command), win_config.width)
     if is_selected then
-      cursor = row
+      cursor = index
     end
   end
   local buf = api.nvim_create_buf(false, true)
@@ -311,12 +286,12 @@ function M.list()
     api.nvim_win_close(win, true)
   end
   local function current_index()
-    return math.ceil(api.nvim_win_get_cursor(win)[1] / 2)
+    return api.nvim_win_get_cursor(win)[1]
   end
   local function move(delta)
     return function()
       local index = math.max(1, math.min(#entries, current_index() + delta))
-      api.nvim_win_set_cursor(win, { 2 * index - 1, 0 })
+      api.nvim_win_set_cursor(win, { index, 0 })
     end
   end
   local opts = { buffer = buf, nowait = true, silent = true }
