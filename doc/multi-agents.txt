@@ -41,9 +41,21 @@ COMMANDS                                                *multi-agents-commands*
     default is marked with *. Use the arrow keys to move, <Enter> to select,
     or <Esc> to cancel. Use zh and zl to scroll long rows horizontally.
 
+:SelectAgent {buffer name, agent name, or PID}                     *:SelectAgent*
+    Set the default agent for commands such as :ToggleAgent. Match the buffer
+    name first, then the agent name, then the process ID shown by :ListAgent.
+    An agent name selects its first live session in creation order.
+
 :ToggleAgent [name or buffer number]                              *:ToggleAgent*
     Show or hide the specified or selected agent. With no live agents and no
     argument, open a new one.
+
+:ReshapeAgent [BufferName] [mode]                                *:ReshapeAgent*
+    Change an existing agent window to float or vertical, keeping its buffer
+    and job. BufferName accepts a name or buffer number and defaults to the
+    selected agent. Omit mode to switch to the other layout. A single mode
+    argument targets the selected agent unless an agent has that name. If
+    the agent is hidden, the new layout applies the next time it is shown.
 
 :CloseAgent [name or buffer number]                                *:CloseAgent*
     Stop the specified or selected agent and remove its buffer.
