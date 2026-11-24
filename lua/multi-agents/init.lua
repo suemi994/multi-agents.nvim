@@ -4,7 +4,9 @@ local config = require('claude-code.config')
 local M = {
   open = agents.open,
   list = agents.list,
+  select = agents.select,
   toggle = agents.toggle,
+  reshape = agents.reshape,
   close = agents.close,
 }
 

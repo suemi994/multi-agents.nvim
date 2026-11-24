@@ -4,6 +4,7 @@ local git = require('claude-code.git')
 
 ---@class MultiAgent
 ---@field name string
+---@field agent_name string
 ---@field buf integer
 ---@field mode 'float'|'vertical'
 ---@field command string
@@ -17,6 +18,7 @@ local selected ---@type MultiAgent?
 local shown ---@type MultiAgent?
 local picker ---@type integer?
 local toggle_keys = {} ---@type table<string, string>
+local modes = { 'float', 'vertical' }
 
 local function parse_open_args(args)
   local mode = config.window.mode
@@ -31,7 +33,7 @@ local function parse_open_args(args)
       error('OpenAgent: unknown option ' .. flag, 0)
     end
     local value, remaining = rest:match('^(%S+)%s*(.*)$')
-    if value ~= 'float' and value ~= 'vertical' then
+    if not vim.tbl_contains(modes, value) then
       error('OpenAgent: --mode expects float or vertical', 0)
     end
     mode, command = value, remaining
@@ -41,15 +43,17 @@ end
 
 local agent_names = { codex = true, claude = true, pi = true, agy = true, dsh = true }
 
-local function unique_name(command)
-  local base = command:match('^%S+')
+local function get_agent_name(command)
   for word in command:gmatch([[[^%s'";|&()<>]+]]) do
     local executable = word:match('[^/]+$')
     if executable and agent_names[executable] then
-      base = executable
-      break
+      return executable
     end
   end
+  return command:match('^%S+')
+end
+
+local function unique_name(base)
   local used_names = {}
   for _, agent in ipairs(agents) do
     used_names[agent.name] = true
@@ -89,7 +93,7 @@ local function close(agent)
   end
 end
 
-local function find_agent(name)
+local function get_agent(name)
   for _, agent in ipairs(agents) do
     if agent.name == name then
       return agent
@@ -100,7 +104,10 @@ local function find_agent(name)
       return agent
     end
   end
-  error('Unknown agent: ' .. name, 0)
+end
+
+local function find_agent(name)
+  return get_agent(name) or error('Unknown agent: ' .. name, 0)
 end
 
 local function hide(agent)
@@ -116,16 +123,16 @@ local function split_width()
   return math.max(1, math.floor(vim.o.columns * config.window.vertical.split_ratio))
 end
 
-local function open_window(agent)
+local function open_window(agent, mode, enter)
   local window = config.window
   local win
-  if agent.mode == 'float' then
-    win = api.nvim_open_win(agent.buf, true, terminal.float_config(window.float))
+  if mode == 'float' then
+    win = api.nvim_open_win(agent.buf, enter, terminal.float_config(window.float))
     vim.wo[win].winhighlight = 'Normal:Normal'
   else
     local layout = window.vertical
     win =
-      api.nvim_open_win(agent.buf, true, { split = layout.side, win = -1, width = split_width() })
+      api.nvim_open_win(agent.buf, enter, { split = layout.side, win = -1, width = split_width() })
   end
   if window.hide_numbers then
     vim.wo[win].number = false
@@ -154,14 +161,22 @@ end
 function M.open(args, forced_mode)
   local mode, command = parse_open_args(args)
   mode = forced_mode or mode
-  local name = unique_name(command)
+  local agent_name = get_agent_name(command)
+  local name = unique_name(agent_name)
   local cwd = config.git.use_git_root and git.get_git_root() or nil
   local buf = api.nvim_create_buf(false, true)
-  local agent = { name = name, buf = buf, mode = mode, command = command, started_at = os.time() }
+  local agent = {
+    name = name,
+    agent_name = agent_name,
+    buf = buf,
+    mode = mode,
+    command = command,
+    started_at = os.time(),
+  }
   vim.bo[buf].bufhidden = 'hide'
 
   local ok, win_or_err = pcall(function()
-    local win = open_window(agent)
+    local win = open_window(agent, agent.mode, true)
     local job = api.nvim_buf_call(buf, function()
       -- Extend the child process environment without changing shell quoting or Neovim's environment.
       return vim.fn.jobstart(command, {
@@ -215,8 +230,55 @@ function M.toggle(name)
       shown = nil
     end
   else
-    activate(agent, open_window(agent))
+    activate(agent, open_window(agent, agent.mode, true))
   end
+end
+
+local function reshape_window(agent, win, mode)
+  local tab = api.nvim_win_get_tabpage(win)
+  local anchor = win
+  for _, other in ipairs(api.nvim_tabpage_list_wins(tab)) do
+    if other ~= win and api.nvim_win_get_config(other).relative == '' then
+      anchor = other
+      break
+    end
+  end
+
+  local focused = win == api.nvim_get_current_win()
+  local replacement = api.nvim_win_call(anchor, function()
+    local new_win = open_window(agent, mode, false)
+    if mode == 'float' and anchor == win then
+      -- Keep a normal window when the agent is the only split in its tab.
+      api.nvim_win_set_buf(win, api.nvim_create_buf(true, false))
+    else
+      api.nvim_win_hide(win)
+    end
+    return new_win
+  end)
+  if focused then
+    api.nvim_set_current_win(replacement)
+  end
+end
+
+function M.reshape(name, mode)
+  if mode ~= nil and not vim.tbl_contains(modes, mode) then
+    error('ReshapeAgent: mode must be float or vertical', 0)
+  end
+  local agent = name and name ~= '' and find_agent(name) or selected
+  if not agent then
+    return
+  end
+  if not mode then
+    local index = vim.fn.index(modes, agent.mode)
+    mode = modes[(index + 1) % #modes + 1]
+  end
+  if mode == agent.mode then
+    return
+  end
+  for _, win in ipairs(vim.fn.win_findbuf(agent.buf)) do
+    reshape_window(agent, win, mode)
+  end
+  agent.mode = mode
 end
 
 function M.close(name)
@@ -224,6 +286,31 @@ function M.close(name)
   if agent then
     close(agent)
   end
+end
+
+function M.select(target)
+  target = tostring(target)
+  local by_name, by_pid
+  for _, agent in ipairs(agents) do
+    local buffer_name = api.nvim_buf_get_name(agent.buf)
+    if target == buffer_name or target == vim.fn.fnamemodify(buffer_name, ':t') then
+      selected = agent
+      return agent.buf
+    end
+    if not by_name and target == agent.agent_name then
+      by_name = agent
+    end
+    if not by_pid and agent.pid and target == tostring(agent.pid) then
+      by_pid = agent
+    end
+  end
+
+  local agent = by_name or by_pid
+  if not agent then
+    error('SelectAgent: unknown agent: ' .. target, 0)
+  end
+  selected = agent
+  return agent.buf
 end
 
 function M.list()
@@ -305,6 +392,41 @@ local function complete_names(lead)
   return matches
 end
 
+local function complete_select(lead)
+  local matches, seen = {}, {}
+  local function add(value)
+    if not seen[value] and vim.startswith(value, lead) then
+      seen[value] = true
+      table.insert(matches, value)
+    end
+  end
+  for _, agent in ipairs(agents) do
+    local buffer_name = api.nvim_buf_get_name(agent.buf)
+    add(vim.fn.fnamemodify(buffer_name, ':t'))
+    add(agent.agent_name)
+    if agent.pid then
+      add(tostring(agent.pid))
+    end
+  end
+  return matches
+end
+
+local function complete_reshape(lead, cmdline, cursorpos)
+  local ok, cmd = pcall(api.nvim_parse_cmd, cmdline:sub(1, cursorpos - #lead), {})
+  local nargs = ok and #cmd.args or 0
+  local name = ok and cmd.args[1] or nil
+  if nargs >= 2 or (nargs == 1 and vim.tbl_contains(modes, name) and not get_agent(name)) then
+    return {}
+  end
+  local matches = nargs == 0 and complete_names(lead) or {}
+  for _, mode in ipairs(modes) do
+    if vim.startswith(mode, lead) and not vim.tbl_contains(matches, mode) then
+      table.insert(matches, mode)
+    end
+  end
+  return matches
+end
+
 local function set_toggle_key(mode, lhs)
   local rhs, desc = '<Cmd>ToggleAgent<CR>', 'Toggle terminal agent'
   local previous = toggle_keys[mode]
@@ -336,9 +458,22 @@ function M.setup(opts)
     M.open(cmd.args, 'vertical')
   end, { nargs = '*', desc = 'Open a new terminal agent in a vertical split' })
   api.nvim_create_user_command('ListAgent', M.list, { desc = 'Select the default terminal agent' })
+  api.nvim_create_user_command('SelectAgent', function(cmd)
+    M.select(cmd.args)
+  end, { nargs = 1, complete = complete_select, desc = 'Set the default terminal agent' })
   api.nvim_create_user_command('ToggleAgent', function(cmd)
     M.toggle(cmd.args)
   end, { nargs = '?', complete = complete_names, desc = 'Toggle a terminal agent' })
+  api.nvim_create_user_command('ReshapeAgent', function(cmd)
+    if #cmd.fargs > 2 then
+      error('ReshapeAgent: expected [BufferName] [mode]', 0)
+    end
+    local name, mode = unpack(cmd.fargs)
+    if not mode and vim.tbl_contains(modes, name) and not get_agent(name) then
+      name, mode = nil, name
+    end
+    M.reshape(name, mode)
+  end, { nargs = '*', complete = complete_reshape, desc = 'Change an agent window mode' })
   api.nvim_create_user_command('CloseAgent', function(cmd)
     M.close(cmd.args)
   end, { nargs = '?', complete = complete_names, desc = 'Close a terminal agent' })
