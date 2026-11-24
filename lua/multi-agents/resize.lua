@@ -46,14 +46,31 @@ local function start_drag(mouse, get_agent)
 
   for _, win in ipairs(api.nvim_tabpage_list_wins(0)) do
     local agent = get_agent(win)
-    if agent and agent.mode == 'vertical' and api.nvim_win_get_config(win).relative == '' then
+    if agent and api.nvim_win_get_config(win).relative == '' then
       local row, col = unpack(api.nvim_win_get_position(win))
       local width, height = api.nvim_win_get_width(win), api.nvim_win_get_height(win)
-      if mouse.screenrow > row and mouse.screenrow <= row + height then
+      if agent.mode == 'vertical' and mouse.screenrow > row and mouse.screenrow <= row + height then
         if col > 0 and mouse.screencol == col then
           return { win = win, agent = agent, x = -1, width = width }
         elseif col + width < vim.o.columns and mouse.screencol == col + width + 1 then
           return { win = win, agent = agent, x = 1, width = width }
+        end
+      elseif
+        agent.mode == 'horizontal'
+        and mouse.screencol > col
+        and mouse.screencol <= col + width
+      then
+        local winbar = vim.fn.getwininfo(win)[1].winbar
+        local edge = mouse.screenrow == row and -1
+          or mouse.screenrow == row + winbar + height + 1 and 1
+        if
+          edge
+          and api.nvim_win_call(win, function()
+            -- Ignore the tabline and the bottom statusline when there is no adjacent split.
+            return vim.fn.winnr(edge < 0 and 'k' or 'j') ~= vim.fn.winnr()
+          end)
+        then
+          return { win = win, agent = agent, y = edge, height = height }
         end
       end
     end
@@ -66,18 +83,21 @@ local function resize(drag, mouse)
     return
   end
 
-  local dx = (mouse.screencol - drag.start.screencol) * drag.x
+  local dx = (mouse.screencol - drag.start.screencol) * (drag.x or 0)
+  local dy = (mouse.screenrow - drag.start.screenrow) * (drag.y or 0)
   if not drag.layout then
-    if agent.mode == 'vertical' then
+    if agent.mode == 'vertical' and drag.x then
       api.nvim_win_set_width(win, math.max(1, drag.width + dx))
       agent.size = { width = api.nvim_win_get_width(win) }
+    elseif agent.mode == 'horizontal' and drag.y then
+      api.nvim_win_set_height(win, math.max(1, drag.height + dy))
+      agent.size = { height = api.nvim_win_get_height(win) }
     end
     return
   elseif agent.mode ~= 'float' then
     return
   end
 
-  local dy = (mouse.screenrow - drag.start.screenrow) * drag.y
   local layout = vim.tbl_extend('force', drag.layout, {})
   local row, col = unpack(drag.position)
   local max_dx = drag.x < 0 and col or vim.o.columns - col - drag.width

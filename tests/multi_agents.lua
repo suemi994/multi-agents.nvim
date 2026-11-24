@@ -187,7 +187,13 @@ local function run()
   local reshaped = agents.open('cat')
   local job = vim.b[reshaped].terminal_job_id
   eq({ 'cat' }, vim.fn.getcompletion('ReshapeAgent ca', 'cmdline'))
-  eq({ '--layout', 'float', 'vertical' }, vim.fn.getcompletion('ReshapeAgent cat ', 'cmdline'))
+  eq(
+    { '--layout', 'float', 'vertical', 'horizontal' },
+    vim.fn.getcompletion('ReshapeAgent cat ', 'cmdline')
+  )
+  vim.cmd.ReshapeAgent()
+  eq('below', api.nvim_win_get_config(0).split)
+  eq(math.floor((vim.o.lines - vim.o.cmdheight - 1) * 0.5), api.nvim_win_get_height(0))
   vim.cmd.ReshapeAgent()
   eq(reshaped, api.nvim_get_current_buf())
   eq('editor', api.nvim_win_get_config(0).relative)
@@ -218,7 +224,7 @@ local function run()
   assert(live(reshaped))
 
   local other = agents.open('cat')
-  vim.cmd('ReshapeAgent cat --layout 28,7')
+  vim.cmd('ReshapeAgent cat float --layout 28,7')
   eq(other, api.nvim_get_current_buf())
   assert(not visible(reshaped) and live(reshaped))
   vim.cmd.ListAgent()
@@ -266,6 +272,47 @@ local function run()
   vim.cmd.CloseAgent()
   vim.cmd.CloseAgent()
 
+  vim.cmd('OpenAgent --mode horizontal cat -u')
+  eq('below', api.nvim_win_get_config(0).split)
+  vim.cmd.CloseAgent()
+
+  agents.setup({
+    command = 'cat',
+    window = {
+      mode = 'horizontal',
+      horizontal = { side = 'top', split_ratio = 0.4 },
+      enter_insert = false,
+    },
+    git = { use_git_root = false },
+  })
+  vim.cmd.OpenAgent()
+  local horizontal = api.nvim_get_current_buf()
+  local horizontal_job = vim.b[horizontal].terminal_job_id
+  local available = vim.o.lines - vim.o.cmdheight - 1
+  eq('above', api.nvim_win_get_config(0).split)
+  eq(math.floor(available * 0.4), api.nvim_win_get_height(0))
+  vim.cmd('ReshapeAgent horizontal --layout 1,25%')
+  eq(math.floor(available * 0.25), api.nvim_win_get_height(0))
+  eq(vim.o.columns, api.nvim_win_get_width(0))
+  vim.cmd.ToggleAgent()
+  assert(not visible(horizontal) and live(horizontal))
+  vim.cmd('ReshapeAgent horizontal --layout 1,7')
+  vim.cmd.ToggleAgent()
+  eq(7, api.nvim_win_get_height(0))
+  eq(horizontal_job, vim.b[horizontal].terminal_job_id)
+  vim.cmd('OpenHorizontal --mode float')
+  eq('above', api.nvim_win_get_config(0).split)
+  eq(math.floor(available * 0.4), api.nvim_win_get_height(0))
+  assert(not visible(horizontal) and live(horizontal))
+  vim.cmd.CloseAgent()
+  vim.cmd.ToggleAgent()
+  eq(horizontal, api.nvim_get_current_buf())
+  eq(7, api.nvim_win_get_height(0))
+  vim.cmd('ReshapeAgent horizontal')
+  eq(math.floor(available * 0.4), api.nvim_win_get_height(0))
+  vim.cmd.CloseAgent()
+
+  agents.setup({ command = 'cat', window = { mode = 'float' }, git = { use_git_root = false } })
   for _, name in ipairs({ 'codex', 'claude', 'pi', 'agy', 'dsh' }) do
     local command = ([[sh -c 'exec cat' "/some/path/%s"]]):format(name)
     local first = agents.open(command)
