@@ -7,11 +7,11 @@ local resize = require('multi-agents.resize')
 ---@field name string
 ---@field agent_name string
 ---@field buf integer
----@field mode 'float'|'vertical'
+---@field mode 'float'|'vertical'|'horizontal'
 ---@field command string
 ---@field started_at integer
 ---@field pid? integer
----@field size? {width: number|string, height?: number|string}
+---@field size? {width?: number|string, height?: number|string}
 
 local M = {}
 local config ---@type ClaudeCodeConfig
@@ -22,7 +22,7 @@ local picker ---@type integer?
 local toggle_keys = {} ---@type table<string, string>
 local has_split_api = vim.fn.has('nvim-0.10') == 1
 local has_terminal_jobstart = vim.fn.has('nvim-0.11') == 1
-local modes = { 'float', 'vertical' }
+local modes = { 'float', 'vertical', 'horizontal' }
 
 local function parse_open_args(args)
   local mode = config.window.mode
@@ -38,7 +38,7 @@ local function parse_open_args(args)
     end
     local value, remaining = rest:match('^(%S+)%s*(.*)$')
     if not vim.tbl_contains(modes, value) then
-      error('OpenAgent: --mode expects float or vertical', 0)
+      error('OpenAgent: --mode expects float, vertical, or horizontal', 0)
     end
     mode, command = value, remaining
   end
@@ -145,12 +145,28 @@ local function parse_layout(layout)
   return size
 end
 
-local function split_width(size)
-  local width = size and size.width or vim.o.columns * config.window.vertical.split_ratio
-  if type(width) == 'string' then
-    width = vim.o.columns * tonumber(width:sub(1, -2)) / 100
+local function split_dimension(value, available, ratio)
+  if type(value) == 'string' then
+    value = available * tonumber(value:sub(1, -2)) / 100
   end
-  return math.max(1, math.min(vim.o.columns, math.floor(width)))
+  return math.max(1, math.min(available, math.floor(value or available * ratio)))
+end
+
+local function split_width(size)
+  return split_dimension(size and size.width, vim.o.columns, config.window.vertical.split_ratio)
+end
+
+local function split_height(size)
+  local available = vim.o.lines - vim.o.cmdheight - 1
+  return split_dimension(size and size.height, available, config.window.horizontal.split_ratio)
+end
+
+local function resize_split(win, mode, size)
+  if mode == 'vertical' then
+    api.nvim_win_set_width(win, split_width(size))
+  elseif mode == 'horizontal' then
+    api.nvim_win_set_height(win, split_height(size))
+  end
 end
 
 local function float_layout(size)
@@ -174,23 +190,33 @@ local function open_window(agent, mode, enter, size)
   if mode == 'float' then
     win = api.nvim_open_win(agent.buf, enter, float_layout(size))
     vim.wo[win].winhighlight = 'Normal:Normal'
-  else
-    local layout = window.vertical
-    if has_split_api then
+  elseif has_split_api then
+    if mode == 'horizontal' then
       win = api.nvim_open_win(agent.buf, enter, {
-        split = layout.side,
+        split = window.horizontal.side == 'top' and 'above' or 'below',
+        win = -1,
+        height = split_height(size),
+      })
+    else
+      win = api.nvim_open_win(agent.buf, enter, {
+        split = window.vertical.side,
         win = -1,
         width = split_width(size),
       })
+    end
+  else
+    local previous = api.nvim_get_current_win()
+    if mode == 'horizontal' then
+      local side = window.horizontal.side == 'top' and 'topleft' or 'botright'
+      vim.cmd(('%s sbuffer %d'):format(side, agent.buf))
     else
-      local previous = api.nvim_get_current_win()
-      local side = layout.side == 'left' and 'topleft' or 'botright'
+      local side = window.vertical.side == 'left' and 'topleft' or 'botright'
       vim.cmd(('%s vertical sbuffer %d'):format(side, agent.buf))
-      win = api.nvim_get_current_win()
-      api.nvim_win_set_width(win, split_width(size))
-      if not enter then
-        api.nvim_set_current_win(previous)
-      end
+    end
+    win = api.nvim_get_current_win()
+    resize_split(win, mode, size)
+    if not enter then
+      api.nvim_set_current_win(previous)
     end
   end
   if window.hide_numbers then
@@ -206,10 +232,8 @@ end
 local function activate(agent, win)
   if shown and shown ~= agent then
     hide(shown)
-    if agent.mode == 'vertical' then
-      -- 'equalalways' may resize the new split when the previous one closes.
-      api.nvim_win_set_width(win, split_width(agent.size))
-    end
+    -- 'equalalways' may resize the new split when the previous one closes.
+    resize_split(win, agent.mode, agent.size)
   end
   selected, shown = agent, agent
   if config.window.enter_insert and not config.window.start_in_normal_mode then
@@ -316,9 +340,7 @@ local function reshape_window(agent, win, mode, size)
     else
       api.nvim_win_hide(win)
     end
-    if mode == 'vertical' then
-      api.nvim_win_set_width(new_win, split_width(size))
-    end
+    resize_split(new_win, mode, size)
     return new_win
   end)
   if focused then
@@ -330,7 +352,7 @@ end
 function M.reshape(name, mode, layout)
   local size = parse_layout(layout)
   if mode ~= nil and not vim.tbl_contains(modes, mode) then
-    error('ReshapeAgent: mode must be float or vertical', 0)
+    error('ReshapeAgent: mode must be float, vertical, or horizontal', 0)
   end
   local agent = name and name ~= '' and find_agent(name) or selected
   if not agent then
@@ -340,8 +362,12 @@ function M.reshape(name, mode, layout)
     local index = vim.fn.index(modes, agent.mode)
     mode = modes[(index + 1) % #modes + 1]
   end
-  if mode == 'vertical' and size then
-    size.height = nil
+  if size then
+    if mode == 'vertical' then
+      size.height = nil
+    elseif mode == 'horizontal' then
+      size.width = nil
+    end
   end
   if mode ~= agent.mode then
     for _, win in ipairs(vim.fn.win_findbuf(agent.buf)) do
@@ -356,7 +382,7 @@ function M.reshape(name, mode, layout)
         current.row, current.col = target.row, target.col
         api.nvim_win_set_config(win, current)
       else
-        api.nvim_win_set_width(win, split_width(size))
+        resize_split(win, mode, size)
       end
     end
   end
@@ -548,6 +574,9 @@ function M.setup(opts)
   api.nvim_create_user_command('OpenVertical', function(cmd)
     M.open(cmd.args, 'vertical')
   end, { nargs = '*', desc = 'Open a new terminal agent in a vertical split' })
+  api.nvim_create_user_command('OpenHorizontal', function(cmd)
+    M.open(cmd.args, 'horizontal')
+  end, { nargs = '*', desc = 'Open a new terminal agent in a horizontal split' })
   api.nvim_create_user_command('ListAgent', M.list, { desc = 'Select the default terminal agent' })
   api.nvim_create_user_command('SelectAgent', function(cmd)
     M.select(cmd.args)

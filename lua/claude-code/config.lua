@@ -8,8 +8,9 @@ local M = {}
 
 --- ClaudeCodeWindow class for window configuration
 -- @table ClaudeCodeWindow
--- @field mode 'vertical'|'float' Default layout for OpenAgent
+-- @field mode 'vertical'|'float'|'horizontal' Default layout for OpenAgent
 -- @field vertical table Vertical layout with split_ratio and side ('left' or 'right')
+-- @field horizontal table Horizontal layout with split_ratio and side ('top' or 'bottom')
 -- @field split_ratio number Percentage of screen for the legacy terminal window (height for horizontal, width for vertical)
 -- @field position string Position of the window: "botright", "topleft", "vertical", "float" etc.
 -- @field enter_insert boolean Whether to enter insert mode when opening Claude Code
@@ -76,6 +77,7 @@ M.default_config = {
   window = {
     mode = 'vertical',
     vertical = { split_ratio = 0.3, side = 'right' },
+    horizontal = { split_ratio = 0.5, side = 'bottom' },
     split_ratio = 0.3, -- Percentage of screen for the terminal window (height or width)
     height_ratio = 0.3, -- DEPRECATED: Use split_ratio instead
     position = 'botright', -- Position of the window: "botright", "topleft", "vertical", "float", etc.
@@ -139,8 +141,8 @@ local function validate_window_config(window)
     return false, 'window config must be a table'
   end
 
-  if window.mode ~= 'float' and window.mode ~= 'vertical' then
-    return false, 'window.mode must be "float" or "vertical"'
+  if window.mode ~= 'float' and window.mode ~= 'vertical' and window.mode ~= 'horizontal' then
+    return false, 'window.mode must be "float", "vertical", or "horizontal"'
   end
 
   local vertical = window.vertical
@@ -155,6 +157,20 @@ local function validate_window_config(window)
   end
   if vertical.side ~= 'left' and vertical.side ~= 'right' then
     return false, 'window.vertical.side must be "left" or "right"'
+  end
+
+  local horizontal = window.horizontal
+  if type(horizontal) ~= 'table' then
+    return false, 'window.horizontal must be a table'
+  end
+  if
+    type(horizontal.split_ratio) ~= 'number'
+    or not (horizontal.split_ratio > 0 and horizontal.split_ratio <= 1)
+  then
+    return false, 'window.horizontal.split_ratio must be a number between 0 and 1'
+  end
+  if horizontal.side ~= 'top' and horizontal.side ~= 'bottom' then
+    return false, 'window.horizontal.side must be "top" or "bottom"'
   end
 
   if type(window.split_ratio) ~= 'number' or window.split_ratio <= 0 or window.split_ratio > 1 then

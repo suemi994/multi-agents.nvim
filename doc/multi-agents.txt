@@ -12,8 +12,12 @@ CONFIGURATION                                      *multi-agents-configuration*
 
 command            Default launch command. Defaults to Neovim's 'shell'.
 env                Extra environment variables for terminal jobs.
-window.mode        Default layout, 'vertical' or 'float'.
+window.mode        Default layout. Defaults to 'vertical'. Also accepts
+                   'float' and 'horizontal'.
 window.vertical    Split side ('left' or 'right') and split_ratio.
+window.horizontal  Split side ('top' or 'bottom', default 'bottom') and
+                   split_ratio (fraction of editor height, default 0.5).
+                   The ratio must be greater than 0 and at most 1.
 window.float       Floating window width, height, row, col, relative, border.
 git.use_git_root   Start from the Git root when available. Set to false to
                    always use Neovim's current working directory.
@@ -25,7 +29,7 @@ keymaps.toggle.terminal  Key for :ToggleAgent in terminal mode.
 
 COMMANDS                                                *multi-agents-commands*
 
-:OpenAgent [--mode float|vertical] [command]                         *:OpenAgent*
+:OpenAgent [--mode float|vertical|horizontal] [command]             *:OpenAgent*
     Open a new agent terminal. With no command, run the configured default.
     Use a leading -- to end plugin option parsing.
 
@@ -34,6 +38,10 @@ COMMANDS                                                *multi-agents-commands*
 
 :OpenVertical [command]                                          *:OpenVertical*
     Open a new agent in a vertical split.
+
+:OpenHorizontal [command]                                     *:OpenHorizontal*
+    Open a new agent in a horizontal split. With no command, run the
+    configured default.
 
 :ListAgent                                                          *:ListAgent*
     List one live agent per row, starting with [buffer name] and the full
@@ -52,17 +60,20 @@ COMMANDS                                                *multi-agents-commands*
 
                                                                *:ReshapeAgent*
 :ReshapeAgent [BufferName] [mode] [--layout width,height]
-    Change an existing agent window to float or vertical, keeping its buffer
-    and job. BufferName accepts a name or buffer number and defaults to the
-    selected agent. Omit mode to switch to the other layout. A single mode
-    argument targets the selected agent unless an agent has that name. If
+    Change an agent window to float, vertical, or horizontal, keeping its
+    buffer and job. BufferName accepts a name or buffer number and defaults
+    to the selected agent. Omit mode to cycle from float to vertical to
+    horizontal and back to float. A single mode argument targets the
+    selected agent unless an agent has that name. If
     the agent is hidden, the new layout applies the next time it is shown.
     Specify dimensions in cells or percentages, e.g. --layout 80,20 or
-    --layout 75%,60%. A vertical split uses only the width. Omit --layout
-    to restore the configured default size.
+    --layout 75%,60%. A vertical split uses only the width, and a horizontal
+    split uses only the height. For example, use
+    :ReshapeAgent horizontal --layout 100%,12 to set the height to 12 rows.
+    Omit --layout to restore the configured default size.
 
-    With the mouse enabled, drag the float border or vertical split
-    separator to resize. The agent remembers its size when hidden and
+    With the mouse enabled, drag the float border or a split separator
+    to resize. The agent remembers its size when hidden and
     shown again. Resizing a split redistributes space among adjacent panes.
 
 :CloseAgent [name or buffer number]                                *:CloseAgent*
