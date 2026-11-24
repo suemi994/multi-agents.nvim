@@ -93,10 +93,9 @@ if [ -n "$STAGED_FILES" ]; then
   # Change to the project root
   cd "$PROJECT_ROOT" || exit 1
   
-  # Run the tests directly using a specific path
-  FULL_PATH="/home/gregg/Projects/neovim/plugins/claude-code/scripts/test.sh"
-  echo "Running test script at: $FULL_PATH"
-  bash "$FULL_PATH"
+  # Run the test script from the repository root
+  echo "Running test script at: $PROJECT_ROOT/scripts/test.sh"
+  bash ./scripts/test.sh
   
   # Check if tests passed
   if [ $? -ne 0 ]; then
