@@ -5,6 +5,23 @@ Launch any agent CLI or shell command in a floating window or vertical split.
 
 Version: v0.4.2
 
+## Screenshots
+
+![A terminal running checks beside a Lua file in a vertical split](assets/vertical-split.png)
+
+<details>
+<summary>Floating terminal and agent list</summary>
+
+`:OpenFloat` opens a terminal over the current editor window.
+
+![A floating terminal showing a Git diff summary](assets/floating-terminal.png)
+
+`:ListAgent` shows running sessions and marks the selected agent with an asterisk.
+
+![The agent list showing two live sessions, their layouts, PIDs, and launch times](assets/agent-list.png)
+
+</details>
+
 ## Installation
 
 Requires Neovim 0.11 or later. Install any agent CLI you want to run and make it available in your shell.
