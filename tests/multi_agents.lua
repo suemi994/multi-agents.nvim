@@ -29,6 +29,29 @@ local function split_side()
 end
 
 local function run()
+  eq(vim.o.shell, require('claude-code.config').parse_config().command)
+  local legacy = require('claude-code')
+  legacy.setup({
+    command = 'cat',
+    command_variants = { custom = '--custom' },
+    keymaps = { toggle = { variants = { custom = '<F8>' } } },
+    refresh = { enable = false },
+  })
+  eq({}, vim.fn.getcompletion('ClaudeCode', 'command'))
+  for _, mode in ipairs({ 'n', 't' }) do
+    eq('<Cmd>ToggleAgent<CR>', vim.fn.maparg('<C-,>', mode))
+  end
+  eq('', vim.fn.maparg('<leader>cC', 'n'))
+  eq('', vim.fn.maparg('<leader>cV', 'n'))
+  eq(nil, legacy.config.command_variants.continue)
+  eq(nil, legacy.config.command_variants.verbose)
+  local variant_called
+  legacy.toggle_with_variant = function(name)
+    variant_called = name
+  end
+  vim.fn.maparg('<F8>', 'n', false, true).callback()
+  eq('custom', variant_called)
+
   local editor = api.nvim_get_current_buf()
   vim.env.MULTI_AGENTS_INHERITED = 'inherited'
   local env_value = [[contains spaces ' " $ `]]
@@ -45,13 +68,17 @@ local function run()
   })
 
   local before_open = os.time()
-  vim.cmd.OpenAgent()
+  keys('<C-,>')
   local one = api.nvim_get_current_buf()
   eq('cat', vim.fn.fnamemodify(api.nvim_buf_get_name(one), ':t'))
   eq('terminal', vim.bo[one].buftype)
   eq(false, vim.bo[one].buflisted)
   eq('left', split_side())
   eq(math.floor(vim.o.columns * 0.4), api.nvim_win_get_width(0))
+  keys('i<C-,>')
+  assert(not visible(one) and live(one))
+  keys('<C-,>')
+  eq(one, api.nvim_get_current_buf())
 
   vim.cmd('OpenAgent --mode float cat -u')
   local after_open = os.time()
@@ -201,6 +228,11 @@ local function run()
   assert(vim.fn.strdisplaywidth(rendered) <= api.nvim_win_get_width(0), rendered)
   keys('<Esc>')
   vim.cmd.CloseAgent()
+
+  agents.setup({ keymaps = { toggle = { normal = '<F9>', terminal = false } } })
+  eq('', vim.fn.maparg('<C-,>', 'n'))
+  eq('', vim.fn.maparg('<C-,>', 't'))
+  eq('<Cmd>ToggleAgent<CR>', vim.fn.maparg('<F9>', 'n'))
 end
 
 local ok, err = xpcall(run, debug.traceback)

@@ -87,15 +87,6 @@ if status_ok then
     },
   }, true) -- Use silent mode for tests
 
-  -- Print available commands for user reference
-  print('\nAvailable Commands:')
-  print('  :ClaudeCode             - Start a new Claude Code session')
-  print('  :ClaudeCodeToggle       - Toggle the Claude Code terminal')
-  print('  :ClaudeCodeRestart      - Restart the Claude Code session')
-  print('  :ClaudeCodeSuspend      - Suspend the current Claude Code session')
-  print('  :ClaudeCodeResume       - Resume the suspended Claude Code session')
-  print('  :ClaudeCodeQuit         - Quit the current Claude Code session')
-  print('  :ClaudeCodeRefreshFiles - Refresh the current working directory information')
 else
   print('✗ Failed to load Claude Code plugin: ' .. tostring(claude_code))
 end
@@ -107,4 +98,3 @@ vim.opt.signcolumn = 'yes'
 
 print('\nClaude Code minimal test environment loaded.')
 print('- Type :messages to see any error messages')
-print("- Try ':ClaudeCode' to start a new session")

@@ -9,45 +9,30 @@ local M = {}
 --- Register keymaps for claude-code.nvim
 --- @param claude_code table The main plugin module
 --- @param config table The plugin configuration
-function M.register_keymaps(claude_code, config)
-  local map_opts = { noremap = true, silent = true }
-
+--- @param skip_toggle? boolean Whether the multi-agent interface handles toggle mappings
+function M.register_keymaps(claude_code, config, skip_toggle)
   -- Normal mode toggle keymaps
-  if config.keymaps.toggle.normal then
-    vim.api.nvim_set_keymap(
-      'n',
-      config.keymaps.toggle.normal,
-      [[<cmd>ClaudeCode<CR>]],
-      vim.tbl_extend('force', map_opts, { desc = 'Claude Code: Toggle' })
-    )
+  if not skip_toggle and config.keymaps.toggle.normal then
+    vim.keymap.set('n', config.keymaps.toggle.normal, function()
+      claude_code.toggle()
+    end, { silent = true, desc = 'Toggle terminal' })
   end
 
-  if config.keymaps.toggle.terminal then
-    -- Terminal mode toggle keymap
-    -- In terminal mode, special keys like Ctrl need different handling
-    -- We use a direct escape sequence approach for more reliable terminal mappings
-    vim.api.nvim_set_keymap(
-      't',
-      config.keymaps.toggle.terminal,
-      [[<C-\><C-n>:ClaudeCode<CR>]],
-      vim.tbl_extend('force', map_opts, { desc = 'Claude Code: Toggle' })
-    )
+  if not skip_toggle and config.keymaps.toggle.terminal then
+    vim.keymap.set('t', config.keymaps.toggle.terminal, function()
+      vim.cmd('stopinsert')
+      claude_code.toggle()
+    end, { silent = true, desc = 'Toggle terminal' })
   end
 
   -- Register variant keymaps if configured
   if config.keymaps.toggle.variants then
     for variant_name, keymap in pairs(config.keymaps.toggle.variants) do
       if keymap then
-        -- Convert variant name to PascalCase for command name (e.g., "continue" -> "Continue")
         local capitalized_name = variant_name:gsub('^%l', string.upper)
-        local cmd_name = 'ClaudeCode' .. capitalized_name
-
-        vim.api.nvim_set_keymap(
-          'n',
-          keymap,
-          string.format([[<cmd>%s<CR>]], cmd_name),
-          vim.tbl_extend('force', map_opts, { desc = 'Claude Code: ' .. capitalized_name })
-        )
+        vim.keymap.set('n', keymap, function()
+          claude_code.toggle_with_variant(variant_name)
+        end, { silent = true, desc = 'Toggle terminal: ' .. capitalized_name })
       end
     end
   end
@@ -56,16 +41,16 @@ function M.register_keymaps(claude_code, config)
   vim.defer_fn(function()
     local status_ok, which_key = pcall(require, 'which-key')
     if status_ok then
-      if config.keymaps.toggle.normal then
+      if not skip_toggle and config.keymaps.toggle.normal then
         which_key.add {
           mode = 'n',
-          { config.keymaps.toggle.normal, desc = 'Claude Code: Toggle', icon = '🤖' },
+          { config.keymaps.toggle.normal, desc = 'Toggle terminal', icon = '🤖' },
         }
       end
-      if config.keymaps.toggle.terminal then
+      if not skip_toggle and config.keymaps.toggle.terminal then
         which_key.add {
           mode = 't',
-          { config.keymaps.toggle.terminal, desc = 'Claude Code: Toggle', icon = '🤖' },
+          { config.keymaps.toggle.terminal, desc = 'Toggle terminal', icon = '🤖' },
         }
       end
 
@@ -76,7 +61,7 @@ function M.register_keymaps(claude_code, config)
             local capitalized_name = variant_name:gsub('^%l', string.upper)
             which_key.add {
               mode = 'n',
-              { keymap, desc = 'Claude Code: ' .. capitalized_name, icon = '🤖' },
+              { keymap, desc = 'Toggle terminal: ' .. capitalized_name, icon = '🤖' },
             }
           end
         end

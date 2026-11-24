@@ -38,8 +38,8 @@ local M = {}
 
 --- ClaudeCodeKeymapsToggle class for toggle keymap configuration
 -- @table ClaudeCodeKeymapsToggle
--- @field normal string|boolean Normal mode keymap for toggling Claude Code, false to disable
--- @field terminal string|boolean Terminal mode keymap for toggling Claude Code, false to disable
+-- @field normal string|boolean Normal mode keymap for toggling the terminal, false to disable
+-- @field terminal string|boolean Terminal mode keymap for toggling the terminal, false to disable
 
 --- ClaudeCodeKeymaps class for keymap configuration
 -- @table ClaudeCodeKeymaps
@@ -49,11 +49,7 @@ local M = {}
 
 --- ClaudeCodeCommandVariants class for command variant configuration
 -- @table ClaudeCodeCommandVariants
--- Conversation management:
--- @field continue string|boolean Resume the most recent conversation
 -- @field resume string|boolean Display an interactive conversation picker
--- Output options:
--- @field verbose string|boolean Enable verbose logging with full turn-by-turn output
 -- Additional options can be added as needed
 
 --- ClaudeCodeShell class for shell configuration
@@ -116,26 +112,17 @@ M.default_config = {
     popd_cmd = 'popd', -- Command to pop directory from stack
   },
   -- Command settings
-  command = 'claude', -- Default command used to launch an agent
+  command = vim.o.shell, -- Default command used to launch an agent
   env = {},
   -- Command variants
   command_variants = {
-    -- Conversation management
-    continue = '--continue', -- Resume the most recent conversation
     resume = '--resume', -- Display an interactive conversation picker
-
-    -- Output options
-    verbose = '--verbose', -- Enable verbose logging with full turn-by-turn output
   },
   -- Keymaps
   keymaps = {
     toggle = {
-      normal = '<C-,>', -- Normal mode keymap for toggling Claude Code
-      terminal = '<C-,>', -- Terminal mode keymap for toggling Claude Code
-      variants = {
-        continue = '<leader>cC', -- Normal mode keymap for Claude Code with continue flag
-        verbose = '<leader>cV', -- Normal mode keymap for Claude Code with verbose flag
-      },
+      normal = '<C-,>',
+      terminal = '<C-,>',
     },
     window_navigation = true, -- Enable window navigation keymaps (<C-h/j/k/l>)
     scrolling = true, -- Enable scrolling keymaps (<C-f/b>) for page up/down
@@ -510,7 +497,7 @@ function M.parse_config(user_config, silent)
   if not valid then
     -- Only notify if not in silent mode
     if not silent then
-      vim.notify('Claude Code: ' .. err, vim.log.levels.ERROR)
+      vim.notify('multi-agents.nvim: ' .. err, vim.log.levels.ERROR)
     end
     -- Fall back to default config in case of error
     return vim.deepcopy(M.default_config)

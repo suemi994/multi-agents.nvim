@@ -1,0 +1,49 @@
+*multi-agents.txt*                         Run multiple terminal agents in Neovim
+
+Requires Neovim 0.9.5 or later. Install the plugin with your plugin manager,
+then call: >lua
+  require('multi-agents').setup({
+    command = vim.o.shell, -- Set this to your preferred agent command
+    window = { mode = 'vertical' },
+  })
+<
+
+CONFIGURATION                                      *multi-agents-configuration*
+
+command            Default launch command. Defaults to Neovim's 'shell'.
+env                Extra environment variables for terminal jobs.
+window.mode        Default layout, 'vertical' or 'float'.
+window.vertical    Split side ('left' or 'right') and split_ratio.
+window.float       Floating window width, height, row, col, relative, border.
+git.use_git_root   Start from the Git root when available. Set to false to
+                   always use Neovim's current working directory.
+
+keymaps.toggle.normal    Key for :ToggleAgent in normal mode.
+keymaps.toggle.terminal  Key for :ToggleAgent in terminal mode.
+                         Each defaults to <C-,>. Set either to false to
+                         disable the binding in that mode.
+
+COMMANDS                                                *multi-agents-commands*
+
+:OpenAgent [--mode float|vertical] [command]                         *:OpenAgent*
+    Open a new agent terminal. With no command, run the configured default.
+    Use a leading -- to end plugin option parsing.
+
+:OpenFloat [command]                                                *:OpenFloat*
+    Open a new agent in a floating window.
+
+:OpenVertical [command]                                          *:OpenVertical*
+    Open a new agent in a vertical split.
+
+:ListAgent                                                          *:ListAgent*
+    List live agents with their command, PID, and local launch time. Use the
+    arrow keys to move, <Enter> to select the default agent, or <Esc> to cancel.
+
+:ToggleAgent [name or buffer number]                              *:ToggleAgent*
+    Show or hide the specified or selected agent. With no live agents and no
+    argument, open a new one.
+
+:CloseAgent [name or buffer number]                                *:CloseAgent*
+    Stop the specified or selected agent and remove its buffer.
+
+ vim:tw=78:ts=8:ft=help:norl:
