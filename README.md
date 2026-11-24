@@ -63,7 +63,7 @@ Agent terminals are unlisted and floating agent windows use the editor's Normal 
 | `:OpenAgent [--mode float\|vertical] [command]` | Create a new terminal, defaulting to `opts.command`. The buffer is named after the first recognized agent executable in the command, or the first command word if there is no match. Duplicates get suffixes such as `-2`. |
 | `:OpenFloat [command]` | Open an agent in a float. Uses `opts.command` when no command is supplied. |
 | `:OpenVertical [command]` | Open an agent in a vertical split. Uses `opts.command` when no command is supplied. |
-| `:ListAgent` | List live agents with their command, PID, and local launch time in a float (70% width, 50% height). Each command gets its own line and ends in `…` if it exceeds the window width. The current default is marked with `*`. Use ↑/↓ to move, Enter to select the default agent, or Esc to cancel. |
+| `:ListAgent` | List one live agent per row in a float. Each row starts with `[buffer name]` and the full command, followed by the layout, PID, and local launch time. The current default is marked with `*`. Use ↑/↓ to move, Enter to select, Esc to cancel, and `zh`/`zl` to scroll long rows horizontally. |
 | `:ToggleAgent [name or buffer number]` | Show or hide the specified or selected terminal. A name or number makes that terminal the default. With no live agents, the argument-free form creates one. |
 | `:CloseAgent [name or buffer number]` | Stop the job and remove the specified or selected buffer. Closing the selected agent selects the next live agent in creation order, wrapping to the first. |
 

@@ -36,8 +36,10 @@ COMMANDS                                                *multi-agents-commands*
     Open a new agent in a vertical split.
 
 :ListAgent                                                          *:ListAgent*
-    List live agents with their command, PID, and local launch time. Use the
-    arrow keys to move, <Enter> to select the default agent, or <Esc> to cancel.
+    List one live agent per row, starting with [buffer name] and the full
+    command, followed by the layout, PID, and local launch time. The current
+    default is marked with *. Use the arrow keys to move, <Enter> to select,
+    or <Esc> to cancel. Use zh and zl to scroll long rows horizontally.
 
 :ToggleAgent [name or buffer number]                              *:ToggleAgent*
     Show or hide the specified or selected agent. With no live agents and no
