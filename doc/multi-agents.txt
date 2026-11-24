@@ -50,12 +50,20 @@ COMMANDS                                                *multi-agents-commands*
     Show or hide the specified or selected agent. With no live agents and no
     argument, open a new one.
 
-:ReshapeAgent [BufferName] [mode]                                *:ReshapeAgent*
+                                                               *:ReshapeAgent*
+:ReshapeAgent [BufferName] [mode] [--layout width,height]
     Change an existing agent window to float or vertical, keeping its buffer
     and job. BufferName accepts a name or buffer number and defaults to the
     selected agent. Omit mode to switch to the other layout. A single mode
     argument targets the selected agent unless an agent has that name. If
     the agent is hidden, the new layout applies the next time it is shown.
+    Specify dimensions in cells or percentages, e.g. --layout 80,20 or
+    --layout 75%,60%. A vertical split uses only the width. Omit --layout
+    to restore the configured default size.
+
+    With the mouse enabled, drag the float border or vertical split
+    separator to resize. The agent remembers its size when hidden and
+    shown again. Resizing a split redistributes space among adjacent panes.
 
 :CloseAgent [name or buffer number]                                *:CloseAgent*
     Stop the specified or selected agent and remove its buffer.

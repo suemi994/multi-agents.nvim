@@ -194,7 +194,7 @@ local function run()
   local reshaped = agents.open('cat')
   local job = vim.b[reshaped].terminal_job_id
   eq({ 'cat' }, vim.fn.getcompletion('ReshapeAgent ca', 'cmdline'))
-  eq({ 'float', 'vertical' }, vim.fn.getcompletion('ReshapeAgent cat ', 'cmdline'))
+  eq({ '--layout', 'float', 'vertical' }, vim.fn.getcompletion('ReshapeAgent cat ', 'cmdline'))
   vim.cmd.ReshapeAgent()
   eq(reshaped, api.nvim_get_current_buf())
   eq('editor', api.nvim_win_get_config(0).relative)
@@ -204,15 +204,28 @@ local function run()
   local float_win = api.nvim_get_current_win()
   vim.cmd('ReshapeAgent float')
   eq(float_win, api.nvim_get_current_win())
-  vim.cmd('ReshapeAgent ' .. reshaped .. ' vertical')
+  vim.cmd('ReshapeAgent float --layout 25%,6')
+  eq(float_win, api.nvim_get_current_win())
+  eq(math.floor(vim.o.columns / 4), api.nvim_win_get_width(0))
+  eq(6, api.nvim_win_get_height(0))
+  vim.cmd.ToggleAgent()
+  vim.cmd.ToggleAgent()
+  eq(6, api.nvim_win_get_height(0))
+  vim.cmd('ReshapeAgent float')
+  eq(32, api.nvim_win_get_width(0))
+  eq(8, api.nvim_win_get_height(0))
+  vim.cmd('ReshapeAgent ' .. reshaped .. ' vertical --layout 22,3')
   eq(reshaped, api.nvim_get_current_buf())
   eq('left', split_side())
+  eq(22, api.nvim_win_get_width(0))
+  assert(api.nvim_win_get_height(0) > 3)
+  vim.cmd('ReshapeAgent vertical')
   eq(math.floor(vim.o.columns * 0.4), api.nvim_win_get_width(0))
   eq(job, vim.b[reshaped].terminal_job_id)
   assert(live(reshaped))
 
   local other = agents.open('cat')
-  vim.cmd('ReshapeAgent cat')
+  vim.cmd('ReshapeAgent cat --layout 28,7')
   eq(other, api.nvim_get_current_buf())
   assert(not visible(reshaped) and live(reshaped))
   vim.cmd.ListAgent()
@@ -220,12 +233,23 @@ local function run()
   assert(vim.startswith(layouts[1], '  [cat] cat  [float]'))
   assert(vim.startswith(layouts[2], '* [cat-2] cat  [vertical]'))
   keys('<Esc>')
-  for _, input in ipairs({ 'cat grid', 'absent float', 'cat float extra' }) do
+  for _, input in ipairs({
+    'cat grid',
+    'absent float',
+    'cat float extra',
+    'float --layout',
+    'float --layout 40',
+    'float --layout 0,5',
+    'float --layout 20,101%',
+    '--layout 20,8 float',
+  }) do
     assert(not pcall(vim.cmd, 'ReshapeAgent ' .. input), input)
     eq(other, api.nvim_get_current_buf())
   end
   vim.cmd('ToggleAgent cat')
   eq('editor', api.nvim_win_get_config(0).relative)
+  eq(28, api.nvim_win_get_width(0))
+  eq(7, api.nvim_win_get_height(0))
   eq(job, vim.b[reshaped].terminal_job_id)
   vim.cmd.CloseAgent()
   vim.cmd.CloseAgent()
