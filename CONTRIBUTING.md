@@ -136,7 +136,7 @@ See `test/README.md` and `tests/README.md` for more details on the different tes
 When adding new features, please update the documentation:
 
 - Update README.md with any new features, configurations, or dependencies
-- Update the Neovim help documentation in doc/claude-code.txt
+- Update the Neovim help documentation in doc/multi-agents.txt
 - Include examples of how to use the new features
 
 ## License

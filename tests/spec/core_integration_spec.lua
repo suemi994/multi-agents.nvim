@@ -27,11 +27,6 @@ mock_modules['claude-code.file_refresh'] = {
   cleanup = function() return true end
 }
 
--- Mock the commands module
-mock_modules['claude-code.commands'] = {
-  register_commands = function() return true end
-}
-
 -- Mock the keymaps module
 mock_modules['claude-code.keymaps'] = {
   setup_keymaps = function() return true end

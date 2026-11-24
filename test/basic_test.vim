@@ -25,7 +25,6 @@ local modules = {
   "claude-code",
   "claude-code.version",
   "claude-code.config",
-  "claude-code.commands",
   "claude-code.keymaps",
   "claude-code.terminal",
   "claude-code.file_refresh",
@@ -76,10 +75,6 @@ local checks = {
   { 
     name = "config", 
     expr = type(claude_code.config) == "table"
-  },
-  {
-    name = "commands",
-    expr = claude_code.commands ~= nil
   }
 }
 

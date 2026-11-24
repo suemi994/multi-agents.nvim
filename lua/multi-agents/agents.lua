@@ -16,6 +16,7 @@ local agents = {} ---@type MultiAgent[]
 local selected ---@type MultiAgent?
 local shown ---@type MultiAgent?
 local picker ---@type integer?
+local toggle_keys = {} ---@type table<string, string>
 
 local function parse_open_args(args)
   local mode = config.window.mode
@@ -326,6 +327,25 @@ local function complete_names(lead)
   return matches
 end
 
+local function set_toggle_key(mode, lhs)
+  local rhs, desc = '<Cmd>ToggleAgent<CR>', 'Toggle terminal agent'
+  local previous = toggle_keys[mode]
+  local current = lhs and vim.keycode(lhs) or nil
+  if previous and previous ~= current then
+    for _, mapping in ipairs(api.nvim_get_keymap(mode)) do
+      if mapping.lhsraw == previous and mapping.rhs == rhs and mapping.desc == desc then
+        vim.keymap.del(mode, mapping.lhs)
+        break
+      end
+    end
+  end
+
+  if lhs then
+    vim.keymap.set(mode, lhs, rhs, { silent = true, desc = desc })
+  end
+  toggle_keys[mode] = current
+end
+
 function M.setup(opts)
   config = opts
   api.nvim_create_user_command('OpenAgent', function(cmd)
@@ -344,6 +364,8 @@ function M.setup(opts)
   api.nvim_create_user_command('CloseAgent', function(cmd)
     M.close(cmd.args)
   end, { nargs = '?', complete = complete_names, desc = 'Close a terminal agent' })
+  set_toggle_key('n', config.keymaps.toggle.normal)
+  set_toggle_key('t', config.keymaps.toggle.terminal)
 end
 
 return M

@@ -18,7 +18,6 @@
 
 -- Import modules
 local config = require('claude-code.config')
-local commands = require('claude-code.commands')
 local keymaps = require('claude-code.keymaps')
 local file_refresh = require('claude-code.file_refresh')
 local terminal = require('claude-code.terminal')
@@ -26,9 +25,6 @@ local git = require('claude-code.git')
 local version = require('claude-code.version')
 
 local M = {}
-
--- Make imported modules available
-M.commands = commands
 
 -- Store the current configuration
 --- @type table
@@ -116,14 +112,11 @@ function M.setup(user_config)
   -- Set up file refresh functionality
   file_refresh.setup(M, M.config)
 
-  -- Register commands
-  commands.register_commands(M)
-  if vim.fn.has('nvim-0.11') == 1 then
+  local multi_agent_supported = vim.fn.has('nvim-0.11') == 1
+  keymaps.register_keymaps(M, M.config, multi_agent_supported)
+  if multi_agent_supported then
     require('multi-agents.agents').setup(M.config)
   end
-
-  -- Register keymaps
-  keymaps.register_keymaps(M, M.config)
 end
 
 return M
