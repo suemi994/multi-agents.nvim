@@ -7,18 +7,20 @@ Version: v0.4.2
 
 ## Screenshots
 
-![A terminal running checks beside a Lua file in a vertical split](assets/vertical-split.png)
+Pi running project checks beside a Lua file in a vertical split.
+
+![Pi displaying two passing checks in a vertical split](assets/vertical-split.png)
 
 <details>
 <summary>Floating terminal and agent list</summary>
 
 `:OpenFloat` opens a terminal over the current editor window.
 
-![A floating terminal showing a Git diff summary](assets/floating-terminal.png)
+![Pi displaying a Git diff summary in a floating terminal](assets/floating-terminal.png)
 
 `:ListAgent` shows running sessions and marks the selected agent with an asterisk.
 
-![The agent list showing two live sessions, their layouts, PIDs, and launch times](assets/agent-list.png)
+![The agent list showing two live Pi sessions, their layouts, PIDs, and launch times](assets/agent-list.png)
 
 </details>
 
